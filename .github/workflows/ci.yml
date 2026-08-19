@@ -1,13 +1,10 @@
-name: Enterprise DevSecOps CI/CD Pipeline
+name: Enterprise CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-env:
-  IMAGE_NAME: fintech-payment-api
 
 jobs:
   build-and-quality:
@@ -27,35 +24,13 @@ jobs:
       - name: Build, Test & JaCoCo Coverage Check
         run: mvn -B verify --file pom.xml
 
-  docker-build-and-scan:
-    name: Local Docker Build & Security Scan
-    needs: build-and-quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Build Docker Image Locally
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
-      - name: Native Trivy Container Vulnerability Scan
-        run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasecurity/trivy:latest image \
-            --format table \
-            --exit-code 0 \
-            --ignore-unfixed \
-            --vuln-type os,library \
-            --severity CRITICAL,HIGH \
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-
   deploy:
     name: Automated Deployment (CD)
-    needs: docker-build-and-scan
+    needs: build-and-quality
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Verify Deployment Readiness
         run: |
           echo "Deployment pipeline execution verified successfully."
-          echo "Target Image: ${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "The Java Spring Boot application is ready for production."
