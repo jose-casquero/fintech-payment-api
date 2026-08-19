@@ -60,6 +60,7 @@ The application follows a classic Enterprise Multi-Layered Architecture:
 - **Cross-Cutting Concerns:** Global exception handling (`@RestControllerAdvice`), Data Mapping (custom Mapper), and Utility classes (Card Masking).
 
 ## Project Structure
+```text
 fintech-payment-api
 ├── pom.xml
 ├── .gitignore
@@ -103,3 +104,6 @@ fintech-payment-api
                         └── service
                             └── impl
                                 └── PaymentServiceImplTest.java
+
+
+```                                
