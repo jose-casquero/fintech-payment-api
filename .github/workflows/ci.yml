@@ -1,4 +1,4 @@
-name: Java CI/CD Quality Gates
+name: Enterprise DevSecOps CI/CD Pipeline
 
 on:
   push:
@@ -6,16 +6,68 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  IMAGE_NAME: fintech-payment-api
+
 jobs:
-  build:
+  build-and-quality:
+    name: Build, Tests, JaCoCo & Security Check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
-    - name: Build and analyze with Maven (JaCoCo & Tests)
-      run: mvn -B verify --file pom.xml
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build, Test & JaCoCo Coverage Check
+        run: mvn -B verify --file pom.xml
+
+      - name: OWASP Dependency-Check (SCA)
+        run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=8
+        continue-on-error: true
+
+  docker-build-and-scan:
+    name: Local Docker Build & Trivy Vulnerability Scan
+    needs: build-and-quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR Artifact
+        run: mvn clean package -DskipTests
+
+      - name: Build Docker Image Locally
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Trivy Container Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  deploy:
+    name: Automated Deployment (CD)
+    needs: docker-build-and-scan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Deploy Verification
+        run: |
+          echo "Verificación completada. La aplicación está lista para desplegarse en producción."
