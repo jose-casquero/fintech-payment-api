@@ -11,14 +11,14 @@ env:
 
 jobs:
   build-and-quality:
-    name: Build, Tests, JaCoCo & Security Check
+    name: Build, Tests, JaCoCo & Security Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -27,9 +27,14 @@ jobs:
       - name: Build, Test & JaCoCo Coverage Check
         run: mvn -B verify --file pom.xml
 
-      - name: OWASP Dependency-Check (SCA)
-        run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=8
-        continue-on-error: true
+      - name: Trivy Dependency Scan (SCA)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
 
   docker-build-and-scan:
     name: Local Docker Build & Trivy Vulnerability Scan
@@ -40,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
