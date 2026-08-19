@@ -27,13 +27,6 @@ jobs:
       - name: Build, Test & JaCoCo Coverage Check
         run: mvn -B verify --file pom.xml
 
-      - name: Upload Build Artifact (JAR)
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-jar
-          path: target/*.jar
-          retention-days: 1
-
   docker-build-and-scan:
     name: Local Docker Build & Security Scan
     needs: build-and-quality
@@ -42,25 +35,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download Build Artifact (JAR)
-        uses: actions/download-artifact@v4
-        with:
-          name: app-jar
-          path: target/
-
       - name: Build Docker Image Locally
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
-      - name: Trivy Container Vulnerability Scan
-        uses: aquasecurity/trivy-action@0.29.0
-        continue-on-error: true
-        with:
-          image-ref: '${{ env.IMAGE_NAME }}:${{ github.sha }}'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+      - name: Native Trivy Container Vulnerability Scan
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasecurity/trivy:latest image \
+            --format table \
+            --exit-code 0 \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --severity CRITICAL,HIGH \
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
   deploy:
     name: Automated Deployment (CD)
